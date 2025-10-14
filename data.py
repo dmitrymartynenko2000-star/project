@@ -1,25 +1,16 @@
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder, StandardScaler
 
-# Пример данных о блюдах (название, калории, белки, жиры, углеводы, категория)
 def get_data():
-    data = [
-        {'name': 'Курица с картошкой', 'calories': 450, 'proteins': 30, 'fats': 15, 'carbs': 50, 'category': 'среднее'},
-        {'name': 'Омлет с овощами', 'calories': 350, 'proteins': 20, 'fats': 20, 'carbs': 10, 'category': 'диетическое'},
-        {'name': 'Гречка с мясом', 'calories': 500, 'proteins': 25, 'fats': 10, 'carbs': 60, 'category': 'высококалорийное'},
-        {'name': 'Рыба на пару', 'calories': 200, 'proteins': 25, 'fats': 5, 'carbs': 0, 'category': 'диетическое'}
+    dishes = [
+        # name,                category,       diet,           calories, proteins, fats, carbs,   tags
+        ("Курица с овощами",   "горячее",      "обычное",      450,      35,       14,   40,      "курица,без свинины,без остро"),
+        ("Рыба на пару",       "горячее",      "диетическое",  220,      28,       6,    2,       "рыба,легкое,без глютена"),
+        ("Гречка с мясом",     "горячее",      "сытное",       520,      25,       12,   70,      "говядина,сытно"),
+        ("Омлет с овощами",    "завтрак",      "вегетарианское",300,      18,       18,   8,       "омлет,овощи"),
+        ("Салат Цезарь",       "салат",        "обычное",      380,      24,       22,   20,      "курица,салат"),
+        ("Паста с томатами",   "горячее",      "вегетарианское",430,      14,       12,   62,      "паста,без свинины"),
     ]
-
-    # Преобразуем данные в DataFrame
-    df = pd.DataFrame(data)
-
-    # Преобразуем категорию блюда в числовое значение
-    label_encoder = LabelEncoder()
-    df['category_encoded'] = label_encoder.fit_transform(df['category'])
-
-    # Стандартизируем числовые параметры КБЖУ
-    scaler = StandardScaler()
-    df[['calories', 'proteins', 'fats', 'carbs']] = scaler.fit_transform(df[['calories', 'proteins', 'fats', 'carbs']])
-
-    # Возвращаем обработанные данные
-    return df, label_encoder, scaler
+    df = pd.DataFrame(dishes, columns=[
+        "name","category","diet","calories","proteins","fats","carbs","tags"
+    ])
+    return df

@@ -1,63 +1,59 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Рекомендатор блюд</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        input, button {
-            padding: 10px;
-            font-size: 14px;
-        }
-        button {
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Рекомендатор блюд</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; max-width: 720px; margin: 32px auto; padding: 0 16px; }
+    .row { display: flex; gap: 8px; }
+    input { flex: 1; padding: 12px; font-size: 16px; }
+    button { padding: 12px 16px; font-size: 16px; cursor: pointer; }
+    pre { background:#f6f6f6; padding:12px; border-radius:8px; white-space:pre-wrap; }
+  </style>
 </head>
 <body>
+  <h1>Рекомендатор блюд</h1>
+  <p>Напиши свободным текстом: “что-то лёгкое без свинины до 400 ккал”, “курицу, но не остро”, и т.д.</p>
+  <div class="row">
+    <input id="q" placeholder="Твой запрос…" />
+    <button id="send">Отправить</button>
+  </div>
+  <h3>Ответ:</h3>
+  <pre id="out">—</pre>
 
-    <h1>Рекомендатор блюд</h1>
-    <form id="preferencesForm">
-        <div class="form-group">
-            <label for="query">Что ты хочешь поесть?</label>
-            <input type="text" id="query" placeholder="Напиши, что ты хочешь поесть">
-        </div>
-        <button type="submit">Получить рекомендации</button>
-    </form>
-
-    <h2>Рекомендуемое блюдо:</h2>
-    <p id="result"></p>
-
-    <script>
-        document.getElementById('preferencesForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const query = document.getElementById('query').value;
-
-            fetch('/recommend', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ query: query })
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('result').innerText = `Мы рекомендуем: ${data.dish.name} - ${data.dish.description}`;
-            })
-            .catch(error => console.error('Ошибка:', error));
+  <script>
+    const $q = document.getElementById('q');
+    const $out = document.getElementById('out');
+    document.getElementById('send').onclick = async () => {
+      const query = $q.value.trim();
+      if (!query) { $out.textContent = "Введите запрос"; return; }
+      $out.textContent = "Думаю…";
+      try {
+        const r = await fetch('/recommend', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ query })
         });
-    </script>
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Ошибка');
 
+        const d = data.dish;
+        const lines = [
+          `🥘 Рекомендация: ${d.name}`,
+          `Причина (LLM): ${data.reason || '—'}`,
+          `КБЖУ блюда: ${d.calories} ккал, Б:${d.proteins} Ж:${d.fats} У:${d.carbs}`,
+          `Категория: ${d.category} | Тип: ${d.diet}`,
+          data.used_target_macros && (
+            `Цель КБЖУ: ` +
+            JSON.stringify(data.used_target_macros)
+          ) || ''
+        ].filter(Boolean);
+        $out.textContent = lines.join('\n');
+      } catch (e) {
+        $out.textContent = 'Ошибка: ' + e.message;
+      }
+    };
+  </script>
 </body>
 </html>

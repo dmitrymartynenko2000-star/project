@@ -1,79 +1,115 @@
-import tensorflow as tf
-from flask import Flask, render_template, request, jsonify
-from data import get_data
+import os, json
+from flask import Flask, request, jsonify, render_template
+from dotenv import load_dotenv
+from openai import OpenAI
 import numpy as np
-import os
 
-# Загружаем данные
-df, label_encoder, scaler = get_data()
+from data import get_data
 
-# Проверяем, существует ли файл модели
-MODEL_PATH = "model.h5"
+# === конфиг ===
+load_dotenv()  # возьмёт OPENAI_API_KEY из .env локально
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # для Vercel добавь Env Var в проекте
+client = OpenAI(api_key="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")
 
-if os.path.exists(MODEL_PATH):
-    # Если модель уже обучена и сохранена, загружаем её
-    model = tf.keras.models.load_model(MODEL_PATH)
-else:
-    # Если модели нет, создаем и обучаем её
-    model = tf.keras.Sequential([
-        tf.keras.layers.Dense(64, activation='relu', input_shape=(4,)),
-        tf.keras.layers.Dense(32, activation='relu'),
-        tf.keras.layers.Dense(16, activation='relu'),
-        tf.keras.layers.Dense(3, activation='softmax')  # 3 категории: среднее, диетическое, высококалорийное
-    ])
+df = get_data()  # твой каталог блюд
 
-    # Компиляция модели
-    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+app = Flask(__name__, template_folder="templates", static_folder="static")
 
-    # Обучаем модель на примере данных
-    X = df[['calories', 'proteins', 'fats', 'carbs']].values
-    y = df['category_encoded'].values
-    model.fit(X, y, epochs=100, batch_size=2)
+def llm_pick_dish(free_text: str):
+    """
+    Просим модель выбрать РОВНО ОДНО блюдо из имеющихся,
+    возвращая JSON {choice: <name>, reason: <string>, target_macros?: {...}}
+    """
+    dish_names = df["name"].tolist()
 
-    # Сохраняем модель после обучения
-    model.save(MODEL_PATH)
+    system = (
+        "Ты помощник ресторана. Пользователь пишет свободным текстом. "
+        "Твоя задача: понять запрос и выбрать ОДНО блюдо из данного списка. "
+        "Учитывай вкусы, ограничения (без свинины/рыба/вегетарианское/острое), цель по калориям и КБЖУ, если они упомянуты. "
+        "Если блюдо из списка не подходит, выбери наиболее близкое. "
+        "Ответ строго в JSON без лишнего текста."
+    )
+    schema_hint = (
+        "Формат ответа:\n"
+        "{\n"
+        '  "choice": "<точное_название_блюда_из_списка>",\n'
+        '  "reason": "<краткое объяснение>",\n'
+        '  "target_macros": {"calories": null|number, "proteins": null|number, "fats": null|number, "carbs": null|number}\n'
+        "}\n"
+    )
+    user = (
+        f"Список блюд: {dish_names}. Запрос пользователя: {free_text}\n"
+        f"{schema_hint}"
+        "Если нет КБЖУ в тексте — ставь null. Возвращай валидный JSON."
+    )
 
-# Инициализируем Flask
-app = Flask(__name__)
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0.2,
+        messages=[
+            {"role":"system","content":system},
+            {"role":"user","content":user}
+        ]
+    )
+    txt = resp.choices[0].message.content.strip()
+    # Подстраховка: вытаскиваем JSON
+    try:
+        start = txt.find("{")
+        end = txt.rfind("}") + 1
+        data = json.loads(txt[start:end])
+    except Exception:
+        # падать нельзя — вернём дефолт
+        data = {"choice": dish_names[0], "reason":"дефолтный выбор", "target_macros": {"calories": None, "proteins": None, "fats": None, "carbs": None}}
+    return data
 
+def score_by_macros(row, target):
+    """Штраф за превышение целевых КБЖУ (если заданы). Меньше — лучше."""
+    score = 0.0
+    for k in ("calories","proteins","fats","carbs"):
+        t = target.get(k)
+        if t is None:
+            continue
+        diff = max(0.0, row[k] - float(t))  # штраф только за превышение
+        score += diff / (t if t else 1.0)
+    return score
 
-# Маршрут для главной страницы с формой
-@app.route('/')
+@app.route("/", methods=["GET"])
 def home():
-    return render_template('index.html')
+    return render_template("index.html")
 
-
-# Роут для получения рекомендаций
-@app.route('/recommend', methods=['POST'])
+@app.route("/recommend", methods=["POST"])
 def recommend():
-    data = request.json
-    query = data['query'].lower()  # Преобразуем запрос в нижний регистр
+    payload = request.get_json(force=True)
+    query = (payload.get("query") or "").strip()
+    if not query:
+        return jsonify(error="empty query"), 400
 
-    # Простая логика поиска ключевых слов в запросе
-    if 'курица' in query and 'овощи' in query:
-        recommended_dish = {
-            "name": "Курица с овощами",
-            "description": "Сытное блюдо с курицей и овощами, идеально для обеда."
-        }
-    elif 'рыба' in query:
-        recommended_dish = {
-            "name": "Рыба на пару",
-            "description": "Легкое и полезное блюдо с рыбой на пару, отличное для диеты."
-        }
-    elif 'гречка' in query:
-        recommended_dish = {
-            "name": "Гречка с мясом",
-            "description": "Питательное блюдо с гречкой и мясом, с высоким содержанием белков."
-        }
+    # 1) ChatGPT выбирает блюдо по имени (из списка)
+    llm = llm_pick_dish(query)
+    chosen_name = llm.get("choice")
+    target = llm.get("target_macros") or {}
+
+    # 2) Находим в каталоге и при необходимости доуточняем по КБЖУ
+    if chosen_name in set(df["name"]):
+        candidate = df[df["name"] == chosen_name].iloc[0].to_dict()
     else:
-        recommended_dish = {
-            "name": "Омлет с овощами",
-            "description": "Легкий омлет с овощами — идеальный вариант для завтрака."
-        }
+        candidate = df.iloc[0].to_dict()
 
-    return jsonify({'dish': recommended_dish})
+    # 3) Если заданы КБЖУ — среди всех блюд выбираем ближайшее (мягкая проверка)
+    if any(v not in (None, "") for v in (target.get("calories"), target.get("proteins"), target.get("fats"), target.get("carbs"))):
+        scored = []
+        for _, row in df.iterrows():
+            s = score_by_macros(row, target)
+            scored.append((s, row.to_dict()))
+        scored.sort(key=lambda x: x[0])
+        candidate = scored[0][1]
 
+    return jsonify({
+        "dish": candidate,
+        "llm_choice": llm.get("choice"),
+        "reason": llm.get("reason"),
+        "used_target_macros": target
+    })
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
-
+if __name__ == "__main__":
+    app.run(debug=True, host="127.0.0.1", port=5000)
