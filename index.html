@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рекомендация блюда</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input, button {
+            padding: 10px;
+            font-size: 14px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Рекомендация блюда</h1>
+    <form id="preferencesForm">
+        <div class="form-group">
+            <label for="calories">Калории (от - до):</label>
+            <input type="text" id="calories" placeholder="Пример: 400-500">
+        </div>
+        <div class="form-group">
+            <label for="proteins">Белки (г):</label>
+            <input type="text" id="proteins" placeholder="Пример: 20-30">
+        </div>
+        <div class="form-group">
+            <label for="fats">Жиры (г):</label>
+            <input type="text" id="fats" placeholder="Пример: 10-15">
+        </div>
+        <div class="form-group">
+            <label for="carbs">Углеводы (г):</label>
+            <input type="text" id="carbs" placeholder="Пример: 40-50">
+        </div>
+        <button type="submit">Получить рекомендации</button>
+    </form>
+
+    <h2>Рекомендуемое блюдо:</h2>
+    <p id="result"></p>
+
+    <script>
+        document.getElementById('preferencesForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const calories = document.getElementById('calories').value.split('-').map(Number);
+            const proteins = document.getElementById('proteins').value.split('-').map(Number);
+            const fats = document.getElementById('fats').value.split('-').map(Number);
+            const carbs = document.getElementById('carbs').value.split('-').map(Number);
+
+            fetch('/recommend', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    calories: { min: calories[0], max: calories[1] },
+                    proteins: { min: proteins[0], max: proteins[1] },
+                    fats: { min: fats[0], max: fats[1] },
+                    carbs: { min: carbs[0], max: carbs[1] }
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('result').innerText = `Мы рекомендуем: ${data.dish.name} - ${data.dish.description}`;
+            })
+            .catch(error => console.error('Ошибка:', error));
+        });
+    </script>
+
+</body>
+</html>

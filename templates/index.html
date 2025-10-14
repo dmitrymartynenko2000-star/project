@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рекомендатор блюд</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input, button {
+            padding: 10px;
+            font-size: 14px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Рекомендатор блюд</h1>
+    <form id="preferencesForm">
+        <div class="form-group">
+            <label for="query">Что ты хочешь поесть?</label>
+            <input type="text" id="query" placeholder="Напиши, что ты хочешь поесть">
+        </div>
+        <button type="submit">Получить рекомендации</button>
+    </form>
+
+    <h2>Рекомендуемое блюдо:</h2>
+    <p id="result"></p>
+
+    <script>
+        document.getElementById('preferencesForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const query = document.getElementById('query').value;
+
+            fetch('/recommend', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query: query })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('result').innerText = `Мы рекомендуем: ${data.dish.name} - ${data.dish.description}`;
+            })
+            .catch(error => console.error('Ошибка:', error));
+        });
+    </script>
+
+</body>
+</html>
