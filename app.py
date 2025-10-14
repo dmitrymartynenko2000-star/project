@@ -3,13 +3,15 @@ from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
 from openai import OpenAI
 import numpy as np
+from config import Config
 
 from data import get_data
 
 # === конфиг ===
 load_dotenv()  # возьмёт OPENAI_API_KEY из .env локально
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # для Vercel добавь Env Var в проекте
-client = OpenAI(api_key="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")
+api_key = Config.OPENAI_API_KEY
+client = OpenAI(api_key=api_key)
 
 df = get_data()  # твой каталог блюд
 
