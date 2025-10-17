@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Food Assistant</title>
+    <title>Food Assistant - Чат с поваром</title>
     <style>
         * {
             margin: 0;
@@ -54,6 +54,30 @@
             overflow-y: auto;
             background: #f8f9fa;
             -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            scrollbar-width: thin;
+            scrollbar-color: #c1c1c1 #f1f1f1;
+        }
+
+        /* Красивый скролл */
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+            margin: 5px 0;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+            transition: background 0.3s ease;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
         }
 
         .message {
@@ -112,6 +136,7 @@
             height: 180px;
             object-fit: cover;
             display: block;
+            cursor: pointer;
         }
 
         .dish-name {
@@ -167,7 +192,7 @@
             font-weight: 500;
         }
 
-        /* Лайтбокс для мобильных */
+        /* Лайтбокс */
         .lightbox {
             display: none;
             position: fixed;
@@ -255,6 +280,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.3s ease;
         }
 
         .send-button:active {
@@ -306,78 +332,28 @@
             text-align: right;
         }
 
-        /* Улучшения для тач-устройств */
         @media (max-width: 480px) {
             .chat-messages {
                 padding: 12px;
             }
-
+            
             .message-content {
                 max-width: 90%;
                 padding: 10px 14px;
             }
-
+            
             .dish-card {
                 padding: 12px;
             }
-
+            
             .dish-image {
                 height: 160px;
             }
-
-            .macros {
-                grid-template-columns: 1fr 1fr;
-                gap: 6px;
-            }
-
-            .macro-item {
-                padding: 8px;
-                font-size: 14px;
-            }
-
-            .chat-input-container {
-                padding: 12px;
-            }
         }
 
-        /* Портретная ориентация */
         @media (max-height: 700px) {
             .dish-image {
                 height: 140px;
-            }
-
-            .chat-header {
-                padding: 12px 15px;
-            }
-
-            .chat-header h1 {
-                font-size: 18px;
-            }
-        }
-
-        /* Ландшафтная ориентация */
-        @media (max-height: 500px) and (orientation: landscape) {
-            .chat-container {
-                height: 100vh;
-            }
-
-            .chat-messages {
-                flex: 0.7;
-            }
-
-            .chat-input-container {
-                flex: 0.3;
-            }
-
-            .dish-image {
-                height: 100px;
-            }
-        }
-
-        /* Предотвращение zoom при фокусе на iOS */
-        @media screen and (max-width: 768px) {
-            .chat-input {
-                font-size: 16px;
             }
         }
     </style>
@@ -395,7 +371,7 @@
                     <strong>👨‍🍳 Привет! Я ваш шеф-помощник!</strong><br><br>
                     Расскажите, что вы хотите:<br>
                     • 🥗 Диетическое блюдо<br>
-                    • 💪 Богатое белком<br>
+                    • 💪 Богатое белком<br> 
                     • 🌱 Вегетарианское<br>
                     • 🍝 Сытное и вкусное<br>
                     • Или просто опишите ваши предпочтения!
@@ -406,10 +382,10 @@
 
         <div class="chat-input-container">
             <form class="chat-input-form" id="chatForm">
-                <textarea
-                    class="chat-input"
-                    id="messageInput"
-                    placeholder="Напишите, что хотите съесть..."
+                <textarea 
+                    class="chat-input" 
+                    id="messageInput" 
+                    placeholder="Напишите, что хотите съесть..." 
                     autocomplete="off"
                     rows="1"
                 ></textarea>
@@ -436,7 +412,7 @@
                 this.lightbox = document.getElementById('lightbox');
                 this.lightboxImage = document.getElementById('lightboxImage');
                 this.lightboxClose = document.getElementById('lightboxClose');
-
+                
                 this.setInitialTime();
                 this.initEventListeners();
                 this.setupAutoResize();
@@ -448,9 +424,9 @@
             }
 
             getCurrentTime() {
-                return new Date().toLocaleTimeString('ru-RU', {
-                    hour: '2-digit',
-                    minute: '2-digit'
+                return new Date().toLocaleTimeString('ru-RU', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
                 });
             }
 
@@ -522,21 +498,30 @@
                         })
                     });
 
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
                     const data = await response.json();
                     this.hideTypingIndicator();
-                    this.addBotMessage(data);
+                    
+                    if (data.error) {
+                        this.addErrorMessage(data.error);
+                    } else {
+                        this.addBotMessage(data);
+                    }
 
                 } catch (error) {
                     console.error('Ошибка:', error);
                     this.hideTypingIndicator();
-                    this.addErrorMessage();
+                    this.addErrorMessage('Не удалось получить рекомендацию. Попробуйте еще раз.');
                 }
             }
 
             addMessage(content, type) {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${type}`;
-
+                
                 const messageContent = document.createElement('div');
                 messageContent.className = 'message-content';
                 messageContent.innerHTML = content;
@@ -548,7 +533,7 @@
                 messageContent.appendChild(timestamp);
                 messageDiv.appendChild(messageContent);
                 this.chatMessages.appendChild(messageDiv);
-
+                
                 this.scrollToBottom();
             }
 
@@ -575,13 +560,13 @@
                         <div class="dish-image-container">
                             <img src="${dish.image_url}" alt="${dish.name}" class="dish-image">
                         </div>
-
+                        
                         <div class="dish-name">${dish.name}</div>
                         <div class="dish-meta">
-                            <strong>Категория:</strong> ${dish.category} |
+                            <strong>Категория:</strong> ${dish.category} | 
                             <strong>Тип:</strong> ${dish.diet}
                         </div>
-
+                        
                         <div class="macros">
                             <div class="macro-item">
                                 <div>🔥 Калории</div>
@@ -600,9 +585,9 @@
                                 <div class="macro-value">${dish.carbs} г</div>
                             </div>
                         </div>
-
+                        
                         <div class="tags">
-                            ${dish.tags.split(',').map(tag =>
+                            ${dish.tags.split(',').map(tag => 
                                 `<span class="tag">${tag.trim()}</span>`
                             ).join('')}
                         </div>
@@ -612,18 +597,15 @@
                 this.addMessage(messageHTML, 'bot');
             }
 
-            addErrorMessage() {
-                this.addMessage(
-                    '⚠️ Произошла ошибка. Пожалуйста, попробуйте еще раз.',
-                    'bot'
-                );
+            addErrorMessage(message = 'Произошла ошибка. Пожалуйста, попробуйте еще раз.') {
+                this.addMessage(`⚠️ ${message}`, 'bot');
             }
 
             showTypingIndicator() {
                 const typingDiv = document.createElement('div');
                 typingDiv.className = 'message bot';
                 typingDiv.id = 'typingIndicator';
-
+                
                 const typingContent = document.createElement('div');
                 typingContent.className = 'typing-indicator';
                 typingContent.innerHTML = '👨‍🍳 Повар думает <span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>';
@@ -642,7 +624,10 @@
 
             scrollToBottom() {
                 setTimeout(() => {
-                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                    this.chatMessages.scrollTo({
+                        top: this.chatMessages.scrollHeight,
+                        behavior: 'smooth'
+                    });
                 }, 100);
             }
         }
@@ -651,11 +636,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             new FoodChat();
         });
-
-        // Предотвращение скролла страницы на iOS
-        document.addEventListener('touchmove', function(e) {
-            e.preventDefault();
-        }, { passive: false });
     </script>
 </body>
 </html>
