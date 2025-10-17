@@ -1,59 +1,661 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Рекомендатор блюд</title>
-  <style>
-    body { font-family: system-ui, Arial, sans-serif; max-width: 720px; margin: 32px auto; padding: 0 16px; }
-    .row { display: flex; gap: 8px; }
-    input { flex: 1; padding: 12px; font-size: 16px; }
-    button { padding: 12px 16px; font-size: 16px; cursor: pointer; }
-    pre { background:#f6f6f6; padding:12px; border-radius:8px; white-space:pre-wrap; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Food Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            width: 100%;
+            height: 100%;
+            background: white;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            position: relative;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .chat-header h1 {
+            font-size: 20px;
+            margin-bottom: 3px;
+        }
+
+        .chat-header p {
+            opacity: 0.9;
+            font-size: 13px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.bot {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .user .message-content {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-bottom-right-radius: 5px;
+        }
+
+        .bot .message-content {
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .dish-card {
+            background: #f8f9fa;
+            border: 1px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 12px;
+        }
+
+        .dish-image-container {
+            width: 100%;
+            margin-bottom: 12px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .dish-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .dish-name {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .dish-meta {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .macros {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .macro-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e1e5e9;
+        }
+
+        .macro-value {
+            font-weight: bold;
+            color: #4CAF50;
+            font-size: 16px;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .tag {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        /* Лайтбокс для мобильных */
+        .lightbox {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+        }
+
+        .lightbox.active {
+            display: flex;
+        }
+
+        .lightbox-content {
+            max-width: 95%;
+            max-height: 80%;
+            border-radius: 10px;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 35px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            z-index: 1001;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-input-container {
+            padding: 15px;
+            background: white;
+            border-top: 1px solid #e1e5e9;
+            position: relative;
+            z-index: 5;
+        }
+
+        .chat-input-form {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 1px solid #e1e5e9;
+            border-radius: 25px;
+            outline: none;
+            font-size: 16px;
+            background: #f8f9fa;
+            min-height: 50px;
+            resize: none;
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            border-color: #4CAF50;
+            background: white;
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 14px 20px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            min-width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .send-button:active {
+            transform: scale(0.95);
+        }
+
+        .send-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .typing-indicator {
+            display: inline-block;
+            padding: 10px 15px;
+            background: white;
+            border-radius: 18px;
+            border-bottom-left-radius: 5px;
+            font-style: italic;
+            color: #666;
+        }
+
+        .typing-dots {
+            display: inline-block;
+        }
+
+        .typing-dots span {
+            animation: typing 1.4s infinite;
+            display: inline-block;
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dots span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% { opacity: 0.3; }
+            30% { opacity: 1; }
+        }
+
+        .timestamp {
+            font-size: 11px;
+            color: #999;
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        /* Улучшения для тач-устройств */
+        @media (max-width: 480px) {
+            .chat-messages {
+                padding: 12px;
+            }
+
+            .message-content {
+                max-width: 90%;
+                padding: 10px 14px;
+            }
+
+            .dish-card {
+                padding: 12px;
+            }
+
+            .dish-image {
+                height: 160px;
+            }
+
+            .macros {
+                grid-template-columns: 1fr 1fr;
+                gap: 6px;
+            }
+
+            .macro-item {
+                padding: 8px;
+                font-size: 14px;
+            }
+
+            .chat-input-container {
+                padding: 12px;
+            }
+        }
+
+        /* Портретная ориентация */
+        @media (max-height: 700px) {
+            .dish-image {
+                height: 140px;
+            }
+
+            .chat-header {
+                padding: 12px 15px;
+            }
+
+            .chat-header h1 {
+                font-size: 18px;
+            }
+        }
+
+        /* Ландшафтная ориентация */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .chat-container {
+                height: 100vh;
+            }
+
+            .chat-messages {
+                flex: 0.7;
+            }
+
+            .chat-input-container {
+                flex: 0.3;
+            }
+
+            .dish-image {
+                height: 100px;
+            }
+        }
+
+        /* Предотвращение zoom при фокусе на iOS */
+        @media screen and (max-width: 768px) {
+            .chat-input {
+                font-size: 16px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <h1>Рекомендатор блюд</h1>
-  <p>Напиши свободным текстом: “что-то лёгкое без свинины до 400 ккал”, “курицу, но не остро”, и т.д.</p>
-  <div class="row">
-    <input id="q" placeholder="Твой запрос…" />
-    <button id="send">Отправить</button>
-  </div>
-  <h3>Ответ:</h3>
-  <pre id="out">—</pre>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🍽️ Food Assistant</h1>
+            <p>Ваш личный помощник по подбору блюд</p>
+        </div>
 
-  <script>
-    const $q = document.getElementById('q');
-    const $out = document.getElementById('out');
-    document.getElementById('send').onclick = async () => {
-      const query = $q.value.trim();
-      if (!query) { $out.textContent = "Введите запрос"; return; }
-      $out.textContent = "Думаю…";
-      try {
-        const r = await fetch('/recommend', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ query })
+        <div class="chat-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-content">
+                    <strong>👨‍🍳 Привет! Я ваш шеф-помощник!</strong><br><br>
+                    Расскажите, что вы хотите:<br>
+                    • 🥗 Диетическое блюдо<br>
+                    • 💪 Богатое белком<br>
+                    • 🌱 Вегетарианское<br>
+                    • 🍝 Сытное и вкусное<br>
+                    • Или просто опишите ваши предпочтения!
+                    <div class="timestamp" id="initialTime"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <form class="chat-input-form" id="chatForm">
+                <textarea
+                    class="chat-input"
+                    id="messageInput"
+                    placeholder="Напишите, что хотите съесть..."
+                    autocomplete="off"
+                    rows="1"
+                ></textarea>
+                <button type="submit" class="send-button" id="sendButton">
+                    📤
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Лайтбокс для просмотра изображений -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" id="lightboxClose">&times;</button>
+        <img class="lightbox-content" id="lightboxImage" src="">
+    </div>
+
+    <script>
+        class FoodChat {
+            constructor() {
+                this.chatMessages = document.getElementById('chatMessages');
+                this.chatForm = document.getElementById('chatForm');
+                this.messageInput = document.getElementById('messageInput');
+                this.sendButton = document.getElementById('sendButton');
+                this.lightbox = document.getElementById('lightbox');
+                this.lightboxImage = document.getElementById('lightboxImage');
+                this.lightboxClose = document.getElementById('lightboxClose');
+
+                this.setInitialTime();
+                this.initEventListeners();
+                this.setupAutoResize();
+            }
+
+            setInitialTime() {
+                const timeElement = document.getElementById('initialTime');
+                timeElement.textContent = this.getCurrentTime();
+            }
+
+            getCurrentTime() {
+                return new Date().toLocaleTimeString('ru-RU', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+            setupAutoResize() {
+                this.messageInput.addEventListener('input', () => {
+                    this.messageInput.style.height = 'auto';
+                    this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
+                });
+            }
+
+            initEventListeners() {
+                this.chatForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.sendMessage();
+                });
+
+                this.messageInput.addEventListener('input', () => {
+                    this.sendButton.disabled = !this.messageInput.value.trim();
+                });
+
+                // Лайтбокс события
+                this.lightboxClose.addEventListener('click', () => {
+                    this.closeLightbox();
+                });
+
+                this.lightbox.addEventListener('click', (e) => {
+                    if (e.target === this.lightbox) {
+                        this.closeLightbox();
+                    }
+                });
+
+                // Закрытие лайтбокса по ESC
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        this.closeLightbox();
+                    }
+                });
+
+                // Тап по картинкам в сообщениях
+                this.chatMessages.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('dish-image')) {
+                        this.openLightbox(e.target.src);
+                    }
+                });
+
+                // Фокус на поле ввода
+                setTimeout(() => this.messageInput.focus(), 500);
+            }
+
+            async sendMessage() {
+                const message = this.messageInput.value.trim();
+                if (!message) return;
+
+                this.addMessage(message, 'user');
+                this.messageInput.value = '';
+                this.messageInput.style.height = 'auto';
+                this.sendButton.disabled = true;
+
+                this.showTypingIndicator();
+
+                try {
+                    const response = await fetch('/recommend', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            query: message
+                        })
+                    });
+
+                    const data = await response.json();
+                    this.hideTypingIndicator();
+                    this.addBotMessage(data);
+
+                } catch (error) {
+                    console.error('Ошибка:', error);
+                    this.hideTypingIndicator();
+                    this.addErrorMessage();
+                }
+            }
+
+            addMessage(content, type) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${type}`;
+
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+                messageContent.innerHTML = content;
+
+                const timestamp = document.createElement('div');
+                timestamp.className = 'timestamp';
+                timestamp.textContent = this.getCurrentTime();
+
+                messageContent.appendChild(timestamp);
+                messageDiv.appendChild(messageContent);
+                this.chatMessages.appendChild(messageDiv);
+
+                this.scrollToBottom();
+            }
+
+            openLightbox(imageSrc) {
+                this.lightboxImage.src = imageSrc;
+                this.lightbox.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            closeLightbox() {
+                this.lightbox.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            }
+
+            addBotMessage(data) {
+                const dish = data.dish;
+                const reason = data.reason;
+
+                let messageHTML = `
+                    <strong>🍽️ Рекомендую: ${dish.name}</strong><br><br>
+                    ${reason}<br><br>
+
+                    <div class="dish-card">
+                        <div class="dish-image-container">
+                            <img src="${dish.image_url}" alt="${dish.name}" class="dish-image">
+                        </div>
+
+                        <div class="dish-name">${dish.name}</div>
+                        <div class="dish-meta">
+                            <strong>Категория:</strong> ${dish.category} |
+                            <strong>Тип:</strong> ${dish.diet}
+                        </div>
+
+                        <div class="macros">
+                            <div class="macro-item">
+                                <div>🔥 Калории</div>
+                                <div class="macro-value">${dish.calories} ккал</div>
+                            </div>
+                            <div class="macro-item">
+                                <div>💪 Белки</div>
+                                <div class="macro-value">${dish.proteins} г</div>
+                            </div>
+                            <div class="macro-item">
+                                <div>🥑 Жиры</div>
+                                <div class="macro-value">${dish.fats} г</div>
+                            </div>
+                            <div class="macro-item">
+                                <div>🌾 Углеводы</div>
+                                <div class="macro-value">${dish.carbs} г</div>
+                            </div>
+                        </div>
+
+                        <div class="tags">
+                            ${dish.tags.split(',').map(tag =>
+                                `<span class="tag">${tag.trim()}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
+
+                this.addMessage(messageHTML, 'bot');
+            }
+
+            addErrorMessage() {
+                this.addMessage(
+                    '⚠️ Произошла ошибка. Пожалуйста, попробуйте еще раз.',
+                    'bot'
+                );
+            }
+
+            showTypingIndicator() {
+                const typingDiv = document.createElement('div');
+                typingDiv.className = 'message bot';
+                typingDiv.id = 'typingIndicator';
+
+                const typingContent = document.createElement('div');
+                typingContent.className = 'typing-indicator';
+                typingContent.innerHTML = '👨‍🍳 Повар думает <span class="typing-dots"><span>.</span><span>.</span><span>.</span></span>';
+
+                typingDiv.appendChild(typingContent);
+                this.chatMessages.appendChild(typingDiv);
+                this.scrollToBottom();
+            }
+
+            hideTypingIndicator() {
+                const typingIndicator = document.getElementById('typingIndicator');
+                if (typingIndicator) {
+                    typingIndicator.remove();
+                }
+            }
+
+            scrollToBottom() {
+                setTimeout(() => {
+                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                }, 100);
+            }
+        }
+
+        // Инициализация чата
+        document.addEventListener('DOMContentLoaded', () => {
+            new FoodChat();
         });
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error || 'Ошибка');
 
-        const d = data.dish;
-        const lines = [
-          `🥘 Рекомендация: ${d.name}`,
-          `Причина (LLM): ${data.reason || '—'}`,
-          `КБЖУ блюда: ${d.calories} ккал, Б:${d.proteins} Ж:${d.fats} У:${d.carbs}`,
-          `Категория: ${d.category} | Тип: ${d.diet}`,
-          data.used_target_macros && (
-            `Цель КБЖУ: ` +
-            JSON.stringify(data.used_target_macros)
-          ) || ''
-        ].filter(Boolean);
-        $out.textContent = lines.join('\n');
-      } catch (e) {
-        $out.textContent = 'Ошибка: ' + e.message;
-      }
-    };
-  </script>
+        // Предотвращение скролла страницы на iOS
+        document.addEventListener('touchmove', function(e) {
+            e.preventDefault();
+        }, { passive: false });
+    </script>
 </body>
 </html>

@@ -1,83 +1,140 @@
 import os, json
 from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
-from openai import OpenAI
+import requests
 import numpy as np
-from config import Config
-
 from data import get_data
 
 # === конфиг ===
-load_dotenv()  # возьмёт OPENAI_API_KEY из .env локально
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # для Vercel добавь Env Var в проекте
-api_key = Config.OPENAI_API_KEY
-client = OpenAI(api_key=api_key)
+load_dotenv()
 
-df = get_data()  # твой каталог блюд
+# Используем API ключ из переменных окружения
+api_key = os.getenv("DEEPSEEK_API_KEY")
+if not api_key:
+    raise ValueError("DEEPSEEK_API_KEY not found in environment variables")
+
+df = get_data()
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
+
+def call_deepseek_api(prompt: str):
+    """
+    Вызов официального DeepSeek API
+    """
+    url = "https://api.deepseek.com/v1/chat/completions"
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    data = {
+        "model": "deepseek-chat",
+        "messages": [
+            {
+                "role": "system",
+                "content": """Ты помощник по подбору блюд. Ты должен выбрать ОДНО блюдо из предоставленного списка и вернуть ответ в формате JSON. 
+Формат ответа: {"choice": "название блюда", "reason": "обоснование выбора", "target_macros": {"calories": число или null, "proteins": число или null, "fats": число или null, "carbs": число или null}}
+Если пользователь указывает предпочтения по КБЖУ, учти их в target_macros."""
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "temperature": 0.3,
+        "max_tokens": 500,
+        "response_format": {"type": "json_object"}
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=data, timeout=30)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f"Ошибка при вызове DeepSeek API: {e}")
+        print(f"Ответ API: {response.text if 'response' in locals() else 'Нет ответа'}")
+        return None
+
+
 def llm_pick_dish(free_text: str):
     """
-    Просим модель выбрать РОВНО ОДНО блюдо из имеющихся,
-    возвращая JSON {choice: <name>, reason: <string>, target_macros?: {...}}
+    Просим модель выбрать РОВНО ОДНО блюдо из имеющихся
     """
     dish_names = df["name"].tolist()
+    dishes_str = "\n".join([f"- {name}" for name in dish_names])
 
-    system = (
-        "Ты помощник ресторана. Пользователь пишет свободным текстом. "
-        "Твоя задача: понять запрос и выбрать ОДНО блюдо из данного списка. "
-        "Учитывай вкусы, ограничения (без свинины/рыба/вегетарианское/острое), цель по калориям и КБЖУ, если они упомянуты. "
-        "Если блюдо из списка не подходит, выбери наиболее близкое. "
-        "Ответ строго в JSON без лишнего текста."
-    )
-    schema_hint = (
-        "Формат ответа:\n"
-        "{\n"
-        '  "choice": "<точное_название_блюда_из_списка>",\n'
-        '  "reason": "<краткое объяснение>",\n'
-        '  "target_macros": {"calories": null|number, "proteins": null|number, "fats": null|number, "carbs": null|number}\n'
-        "}\n"
-    )
-    user = (
-        f"Список блюд: {dish_names}. Запрос пользователя: {free_text}\n"
-        f"{schema_hint}"
-        "Если нет КБЖУ в тексте — ставь null. Возвращай валидный JSON."
-    )
+    prompt = f"""
+Пользователь сказал: "{free_text}"
 
-    resp = client.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.2,
-        messages=[
-            {"role":"system","content":system},
-            {"role":"user","content":user}
-        ]
-    )
-    txt = resp.choices[0].message.content.strip()
-    # Подстраховка: вытаскиваем JSON
+Доступные блюда:
+{dishes_str}
+
+Выбери ОДНО самое подходящее блюдо из списка выше. 
+Учти диетические предпочтения пользователя.
+
+Верни ответ ТОЛЬКО в формате JSON:
+{{
+    "choice": "название выбранного блюда",
+    "reason": "обоснование выбора на русском",
+    "target_macros": {{
+        "calories": число или null,
+        "proteins": число или null, 
+        "fats": число или null,
+        "carbs": число или null
+    }}
+}}
+"""
+
     try:
-        start = txt.find("{")
-        end = txt.rfind("}") + 1
-        data = json.loads(txt[start:end])
-    except Exception:
-        # падать нельзя — вернём дефолт
-        data = {"choice": dish_names[0], "reason":"дефолтный выбор", "target_macros": {"calories": None, "proteins": None, "fats": None, "carbs": None}}
-    return data
+        api_response = call_deepseek_api(prompt)
+        if api_response and 'choices' in api_response:
+            content = api_response['choices'][0]['message']['content']
+            print(f"Ответ от DeepSeek: {content}")  # Для отладки
+            result = json.loads(content)
+
+            # Валидация результата
+            if 'choice' not in result:
+                result['choice'] = dish_names[0]
+            if 'reason' not in result:
+                result['reason'] = "Автоматический выбор"
+            if 'target_macros' not in result:
+                result['target_macros'] = {}
+
+            return result
+        else:
+            print("Неверный ответ от API")
+            raise Exception("Неверный ответ от API")
+
+    except Exception as e:
+        print(f"Ошибка при обработке ответа DeepSeek: {e}")
+        return {
+            "choice": dish_names[0],
+            "reason": "Автоматический выбор из-за ошибки",
+            "target_macros": {"calories": None, "proteins": None, "fats": None, "carbs": None}
+        }
+
 
 def score_by_macros(row, target):
     """Штраф за превышение целевых КБЖУ (если заданы). Меньше — лучше."""
     score = 0.0
-    for k in ("calories","proteins","fats","carbs"):
+    for k in ("calories", "proteins", "fats", "carbs"):
         t = target.get(k)
         if t is None:
             continue
-        diff = max(0.0, row[k] - float(t))  # штраф только за превышение
-        score += diff / (t if t else 1.0)
+        try:
+            diff = max(0.0, float(row[k]) - float(t))  # штраф только за превышение
+            score += diff / (float(t) if float(t) > 0 else 1.0)
+        except (ValueError, TypeError):
+            continue
     return score
+
 
 @app.route("/", methods=["GET"])
 def home():
     return render_template("index.html")
+
 
 @app.route("/recommend", methods=["POST"])
 def recommend():
@@ -86,19 +143,21 @@ def recommend():
     if not query:
         return jsonify(error="empty query"), 400
 
-    # 1) ChatGPT выбирает блюдо по имени (из списка)
+    # Deep Seek выбирает блюдо
     llm = llm_pick_dish(query)
     chosen_name = llm.get("choice")
     target = llm.get("target_macros") or {}
 
-    # 2) Находим в каталоге и при необходимости доуточняем по КБЖУ
+    # Находим в каталоге
+    candidate = None
     if chosen_name in set(df["name"]):
         candidate = df[df["name"] == chosen_name].iloc[0].to_dict()
     else:
         candidate = df.iloc[0].to_dict()
 
-    # 3) Если заданы КБЖУ — среди всех блюд выбираем ближайшее (мягкая проверка)
-    if any(v not in (None, "") for v in (target.get("calories"), target.get("proteins"), target.get("fats"), target.get("carbs"))):
+    # Если заданы КБЖУ — выбираем ближайшее
+    if any(v not in (None, "") for v in
+           (target.get("calories"), target.get("proteins"), target.get("fats"), target.get("carbs"))):
         scored = []
         for _, row in df.iterrows():
             s = score_by_macros(row, target)
@@ -112,6 +171,7 @@ def recommend():
         "reason": llm.get("reason"),
         "used_target_macros": target
     })
+
 
 if __name__ == "__main__":
     app.run(debug=True, host="127.0.0.1", port=5000)
