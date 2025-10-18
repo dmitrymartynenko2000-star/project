@@ -51,6 +51,73 @@
     <p id="result"></p>
 
     <script>
+        addBotMessage(data) {
+    const dish = data.dish;
+    const reason = data.reason;
+    const recommendations = data.recommendations || [];
+
+    let recommendationsHTML = '';
+    if (recommendations.length > 0) {
+        recommendationsHTML = `
+            <div class="recommendations-section">
+                <div class="recommendations-title">🍽️ С этим обычно берут:</div>
+                <div class="recommendations-list">
+                    ${recommendations.map(rec => 
+                        `<span class="recommendation-item">${rec}</span>`
+                    ).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    let messageHTML = `
+        <strong>🍽️ Рекомендую: ${dish.name}</strong><br><br>
+        ${reason}<br><br>
+
+        <div class="dish-card">
+            <div class="dish-image-container">
+                <img src="${dish.image_url}" alt="${dish.name}" class="dish-image" 
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div class="dish-icon" style="display:none;">🍽️</div>
+            </div>
+            
+            <div class="dish-name">${dish.name}</div>
+            <div class="dish-meta">
+                <strong>Категория:</strong> ${dish.category} | 
+                <strong>Тип:</strong> ${dish.diet}
+            </div>
+            
+            <div class="macros">
+                <div class="macro-item">
+                    <div>🔥 Калории</div>
+                    <div class="macro-value">${dish.calories} ккал</div>
+                </div>
+                <div class="macro-item">
+                    <div>💪 Белки</div>
+                    <div class="macro-value">${dish.proteins} г</div>
+                </div>
+                <div class="macro-item">
+                    <div>🥑 Жиры</div>
+                    <div class="macro-value">${dish.fats} г</div>
+                </div>
+                <div class="macro-item">
+                    <div>🌾 Углеводы</div>
+                    <div class="macro-value">${dish.carbs} г</div>
+                </div>
+            </div>
+            
+            <div class="tags">
+                ${dish.tags.split(',').map(tag => 
+                    `<span class="tag">${tag.trim()}</span>`
+                ).join('')}
+            </div>
+
+            ${recommendationsHTML}
+        </div>
+    `;
+
+    this.addMessage(messageHTML, 'bot');
+}
         document.getElementById('preferencesForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
