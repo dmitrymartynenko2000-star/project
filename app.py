@@ -131,7 +131,11 @@ def home():
 @app.route("/recommend", methods=["POST", "OPTIONS"])
 def recommend():
     if request.method == "OPTIONS":
-        return jsonify({"status": "ok"})
+        response = jsonify({"status": "ok"})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+        return response
     
     try:
         payload = request.get_json(force=True)
@@ -155,28 +159,34 @@ def recommend():
             scored.sort(key=lambda x: x[0])
             candidate = scored[0][1]
 
-        # Получаем рекомендации (простая версия без ML)
+        # ⭐⭐ ДОБАВЬТЕ ЭТОТ КОД ДЛЯ РЕКОМЕНДАЦИЙ ⭐⭐
         recommendations = []
-        if candidate["name"] == "Курица с овощами":
-            recommendations = ["Салат Цезарь", "Омлет с овощами"]
-        elif candidate["name"] == "Рыба на пару":
-            recommendations = ["Гречка с мясом", "Салат Цезарь"]
-        elif candidate["name"] == "Гречка с мясом":
-            recommendations = ["Рыба на пару", "Омлет с овощами"]
-        elif candidate["name"] == "Омлет с овощами":
-            recommendations = ["Курица с овощами", "Салат Цезарь"]
-        elif candidate["name"] == "Салат Цезарь":
-            recommendations = ["Курица с овощами", "Паста с томатами"]
-        elif candidate["name"] == "Паста с томатами":
-            recommendations = ["Салат Цезарь", "Рыба на пару"]
+        dish_name = candidate["name"]
         
-        return jsonify({
+        if dish_name == "Курица с овощами":
+            recommendations = ["Салат Цезарь", "Омлет с овощами"]
+        elif dish_name == "Рыба на пару":
+            recommendations = ["Гречка с мясом", "Салат Цезарь"]
+        elif dish_name == "Гречка с мясом":
+            recommendations = ["Рыба на пару", "Омлет с овощами"]
+        elif dish_name == "Омлет с овощами":
+            recommendations = ["Курица с овощами", "Салат Цезарь"]
+        elif dish_name == "Салат Цезарь":
+            recommendations = ["Курица с овощами", "Паста с томатами"]
+        elif dish_name == "Паста с томатами":
+            recommendations = ["Салат Цезарь", "Рыба на пару"]
+        # ⭐⭐ КОНЕЦ ДОБАВЛЕНИЯ ⭐⭐
+
+        response = jsonify({
             "dish": candidate,
             "llm_choice": llm.get("choice"),
             "reason": llm.get("reason"),
             "used_target_macros": target,
-            "recommendations": recommendations
+            "recommendations": recommendations  # ⭐⭐ ВАЖНО: передаем рекомендации!
         })
+        
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        return response
     
     except Exception as e:
         print(f"❌ Error in recommend: {e}")
