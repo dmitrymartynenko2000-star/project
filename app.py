@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
 import requests
 import numpy as np
-from data import get_data
+from data import get_data, get_recommendations
 
 # === конфиг ===
 load_dotenv()
@@ -56,6 +56,47 @@ def call_deepseek_api(prompt: str):
         print(f"Ошибка при вызове DeepSeek API: {e}")
         print(f"Ответ API: {response.text if 'response' in locals() else 'Нет ответа'}")
         return None
+@app.route("/recommend", methods=["POST", "OPTIONS"])
+def recommend():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "ok"})
+    
+    try:
+        payload = request.get_json(force=True)
+        query = (payload.get("query") or "").strip()
+        if not query:
+            return jsonify(error="empty query"), 400
+
+        llm = llm_pick_dish(query)
+        chosen_name = llm.get("choice")
+        target = llm.get("target_macros") or {}
+
+        # Находим блюдо в каталоге
+        if chosen_name in set(df["name"]):
+            candidate = df[df["name"] == chosen_name].iloc[0].to_dict()
+        else:
+            candidate = df.iloc[0].to_dict()
+
+        # Уточняем по КБЖУ если нужно
+        if any(v not in (None, "") for v in target.values()):
+            scored = [(score_by_macros(row, target), row.to_dict()) for _, row in df.iterrows()]
+            scored.sort(key=lambda x: x[0])
+            candidate = scored[0][1]
+
+        # Получаем рекомендации
+        recommendations = get_recommendations(candidate["name"], df)
+        
+        return jsonify({
+            "dish": candidate,
+            "llm_choice": llm.get("choice"),
+            "reason": llm.get("reason"),
+            "used_target_macros": target,
+            "recommendations": recommendations  # Добавляем рекомендации
+        })
+    
+    except Exception as e:
+        print(f"❌ Error in recommend: {e}")
+        return jsonify(error="Internal server error"), 500
 
 
 def llm_pick_dish(free_text: str):
