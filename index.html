@@ -84,8 +84,9 @@
     const reason = data.reason;
     const recommendations = data.recommendations || [];
 
+    // Создаем HTML для рекомендаций
     let recommendationsHTML = '';
-    if (recommendations.length > 0) {
+    if (recommendations && recommendations.length > 0) {
         recommendationsHTML = `
             <div class="recommendations-section">
                 <div class="recommendations-title">🍽️ С этим обычно берут:</div>
@@ -146,32 +147,6 @@
 
     this.addMessage(messageHTML, 'bot');
 }
-        document.getElementById('preferencesForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const calories = document.getElementById('calories').value.split('-').map(Number);
-            const proteins = document.getElementById('proteins').value.split('-').map(Number);
-            const fats = document.getElementById('fats').value.split('-').map(Number);
-            const carbs = document.getElementById('carbs').value.split('-').map(Number);
-
-            fetch('/recommend', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    calories: { min: calories[0], max: calories[1] },
-                    proteins: { min: proteins[0], max: proteins[1] },
-                    fats: { min: fats[0], max: fats[1] },
-                    carbs: { min: carbs[0], max: carbs[1] }
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('result').innerText = `Мы рекомендуем: ${data.dish.name} - ${data.dish.description}`;
-            })
-            .catch(error => console.error('Ошибка:', error));
-        });
     </script>
 
 </body>
