@@ -8,6 +8,7 @@
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            background-color: #f5f5f5;
         }
         .form-group {
             margin-bottom: 15px;
@@ -15,69 +16,145 @@
         input, button {
             padding: 10px;
             font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
         }
         button {
             cursor: pointer;
             background-color: #4CAF50;
             color: white;
             border: none;
+            transition: background-color 0.3s;
         }
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .dish-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 500px;
+        }
+        
+        .dish-image-container {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .dish-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .dish-icon {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f0f0;
+            font-size: 48px;
+        }
+        
+        .dish-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .dish-meta {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        
+        .price {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 18px;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+        
+        .macros {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .macro-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .macro-value {
+            font-weight: bold;
+            font-size: 16px;
+            color: #333;
+        }
+        
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .tag {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        
         .recommendations-section {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px dashed #e1e5e9;
-}
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #e1e5e9;
+        }
 
-.recommendations-title {
-    font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 8px;
-    font-size: 14px;
-}
+        .recommendations-title {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
 
-.recommendations-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
+        .recommendations-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
 
-.recommendation-item {
-    background: linear-gradient(135deg, #4CAF50, #45a049);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 15px;
-    font-size: 12px;
-    font-weight: 500;
-    box-shadow: 0 2px 5px rgba(76, 175, 80, 0.2);
-}
-        .recommendations-section {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px dashed #e1e5e9;
-}
-
-.recommendations-title {
-    font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 8px;
-    font-size: 14px;
-}
-
-.recommendations-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.recommendation-item {
-    background: linear-gradient(135deg, #4CAF50, #45a049);
-    color: white;
-    padding: 6px 12px;
-    border-radius: 15px;
-    font-size: 12px;
-    font-weight: 500;
-    box-shadow: 0 2px 5px rgba(76, 175, 80, 0.2);
-}
+        .recommendation-item {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 500;
+            box-shadow: 0 2px 5px rgba(76, 175, 80, 0.2);
+        }
+        
+        #result {
+            min-height: 100px;
+        }
     </style>
 </head>
 <body>
@@ -104,77 +181,119 @@
     </form>
 
     <h2>Рекомендуемое блюдо:</h2>
-    <p id="result"></p>
+    <div id="result"></div>
 
     <script>
-        addBotMessage(data) {
-    const dish = data.dish;
-    const reason = data.reason;
-    const recommendations = data.recommendations || [];
-
-    // Создаем HTML для рекомендаций
-    let recommendationsHTML = '';
-    if (recommendations && recommendations.length > 0) {
-        recommendationsHTML = `
-            <div class="recommendations-section">
-                <div class="recommendations-title">🍽️ С этим обычно берут:</div>
-                <div class="recommendations-list">
-                    ${recommendations.map(rec => 
-                        `<span class="recommendation-item">${rec}</span>`
-                    ).join('')}
-                </div>
-            </div>
-        `;
-    }
-
-    let messageHTML = `
-        <strong>🍽️ Рекомендую: ${dish.name}</strong><br><br>
-        ${reason}<br><br>
-
-        <div class="dish-card">
-            <div class="dish-image-container">
-                <img src="${dish.image_url}" alt="${dish.name}" class="dish-image" 
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <div class="dish-icon" style="display:none;">🍽️</div>
-            </div>
+        document.getElementById('preferencesForm').addEventListener('submit', function(e) {
+            e.preventDefault();
             
-            <div class="dish-name">${dish.name}</div>
-            <div class="dish-meta">
-                <strong>Категория:</strong> ${dish.category} | 
-                <strong>Тип:</strong> ${dish.diet}
-            </div>
+            const calories = document.getElementById('calories').value;
+            const proteins = document.getElementById('proteins').value;
+            const fats = document.getElementById('fats').value;
+            const carbs = document.getElementById('carbs').value;
             
-            <div class="macros">
-                <div class="macro-item">
-                    <div>🔥 Калории</div>
-                    <div class="macro-value">${dish.calories} ккал</div>
-                </div>
-                <div class="macro-item">
-                    <div>💪 Белки</div>
-                    <div class="macro-value">${dish.proteins} г</div>
-                </div>
-                <div class="macro-item">
-                    <div>🥑 Жиры</div>
-                    <div class="macro-value">${dish.fats} г</div>
-                </div>
-                <div class="macro-item">
-                    <div>🌾 Углеводы</div>
-                    <div class="macro-value">${dish.carbs} г</div>
-                </div>
-            </div>
+            // Формируем текстовый запрос
+            let query = '';
+            if (calories) query += `калории ${calories} `;
+            if (proteins) query += `белки ${proteins} `;
+            if (fats) query += `жиры ${fats} `;
+            if (carbs) query += `углеводы ${carbs} `;
             
-            <div class="tags">
-                ${dish.tags.split(',').map(tag => 
-                    `<span class="tag">${tag.trim()}</span>`
-                ).join('')}
-            </div>
+            if (!query.trim()) {
+                query = 'любое блюдо';
+            }
+            
+            // Отправляем запрос на сервер
+            fetch('/recommend', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query: query.trim() })
+            })
+            .then(response => response.json())
+            .then(data => {
+                addBotMessage(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = 'Ошибка при получении рекомендации';
+            });
+        });
 
-            ${recommendationsHTML}
-        </div>
-    `;
+        function addBotMessage(data) {
+            const dish = data.dish;
+            const reason = data.reason;
+            const recommendations = data.recommendations || [];
 
-    this.addMessage(messageHTML, 'bot');
-}
+            // Создаем HTML для рекомендаций
+            let recommendationsHTML = '';
+            if (recommendations && recommendations.length > 0) {
+                recommendationsHTML = `
+                    <div class="recommendations-section">
+                        <div class="recommendations-title">🍽️ С этим обычно берут:</div>
+                        <div class="recommendations-list">
+                            ${recommendations.map(rec => 
+                                `<span class="recommendation-item">${rec}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            let messageHTML = `
+                <div class="dish-card">
+                    <div class="dish-image-container">
+                        <img src="${dish.image_url}" alt="${dish.name}" class="dish-image" 
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                        <div class="dish-icon" style="display:none;">🍽️</div>
+                    </div>
+                    
+                    <div class="dish-name">${dish.name}</div>
+                    
+                    <div class="price">${dish.price} ₽</div>
+                    
+                    <div class="dish-meta">
+                        <strong>Категория:</strong> ${dish.category} | 
+                        <strong>Тип:</strong> ${dish.diet}
+                    </div>
+                    
+                    <div class="macros">
+                        <div class="macro-item">
+                            <div>🔥 Калории</div>
+                            <div class="macro-value">${dish.calories} ккал</div>
+                        </div>
+                        <div class="macro-item">
+                            <div>💪 Белки</div>
+                            <div class="macro-value">${dish.proteins} г</div>
+                        </div>
+                        <div class="macro-item">
+                            <div>🥑 Жиры</div>
+                            <div class="macro-value">${dish.fats} г</div>
+                        </div>
+                        <div class="macro-item">
+                            <div>🌾 Углеводы</div>
+                            <div class="macro-value">${dish.carbs} г</div>
+                        </div>
+                    </div>
+                    
+                    <div class="tags">
+                        ${dish.tags.split(',').map(tag => 
+                            `<span class="tag">${tag.trim()}</span>`
+                        ).join('')}
+                    </div>
+
+                    <div class="reason">
+                        <strong>🤔 Почему рекомендую:</strong><br>
+                        ${reason}
+                    </div>
+
+                    ${recommendationsHTML}
+                </div>
+            `;
+
+            document.getElementById('result').innerHTML = messageHTML;
+        }
     </script>
 
 </body>
