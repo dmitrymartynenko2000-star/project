@@ -21,7 +21,7 @@ def get_data():
          "Курица с овощами,Салат Цезарь"),
         ("Салат Цезарь", "салат", "обычное", 380, 24, 22, 20, 350,
          "курица,салат",
-         "https://static.1000.menu/img/content-v2/eb/79/19516/salat-cezar-klassicheskii-s-kuricei_1611309331_16_max.jpg",
+         "https://images.gastronom.ru/-UHzDgNx-m0MMa6OR0ilz2qP7MB0mKQeGceObc9jpck/pr:recipe-cover-image/g:ce/rs:auto:0:0:0/L2Ntcy9hbGwtaW1hZ2VzLzVhNzFhZGY1LTM3MTYtNDlmMy04NDNlLTAwMTg4MGNiM2E0OS5qcGc.webp",
          "Курица с овощами,Паста с томатами"),
         ("Паста с томатами", "горячее", "вегетарианское", 430, 14, 12, 62, 420,
          "паста,без свинины",
@@ -43,7 +43,7 @@ def get_data():
          "Гречка с мясом,Паста с томатами"),
         ("Стейк с овощами", "горячее", "обычное", 550, 40, 22, 12, 890,
          "говядина,овощи,без углеводов",
-         "https://brandfood.net/wp-content/uploads/2021/08/stejk-s-ovoshhami-3.jpeg",
+         "https://alimero.ru/uploads/images/00/84/33/2016/07/21/bd3ce8_wmark.jpg",
          "Рыба на пару,Салат Цезарь"),
 
         # Дополнительные блюда
