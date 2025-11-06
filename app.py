@@ -40,7 +40,7 @@ def get_nutrition_rules(category):
         }
 
 def apply_nutrition_filters(df, request_lower):
-    """Применяет nutritional фильтры с ЖЕСТКОЙ привязкой к категории"""
+    """Применяет nutritional фильтры с ЖЕСТКОЙ привязкой к категории и ЧИСЛОВЫМ сравнением"""
     filtered_df = df.copy()
     
     # ЖЕСТКО определяем категорию из запроса
@@ -62,31 +62,41 @@ def apply_nutrition_filters(df, request_lower):
     if target_category:
         rules = get_nutrition_rules(target_category)
         
-        # Фильтры по белкам
-        if 'много белков' in request_lower or 'высокий белок' in request_lower:
+        # ЖЕСТКАЯ логика для "много калорий" - сортируем по убыванию калорий
+        if 'много калорий' in request_lower or 'калорийн' in request_lower:
+            filtered_df = filtered_df[filtered_df['calories'] >= rules['high_calories']]
+            if len(filtered_df) > 0:
+                # Сортируем по калориям по убыванию и берем ТОП-1
+                filtered_df = filtered_df.sort_values('calories', ascending=False).head(1)
+        
+        # ЖЕСТКАЯ логика для "мало калорий" - сортируем по возрастанию калорий
+        elif 'мало калорий' in request_lower or 'низкокалорий' in request_lower:
+            filtered_df = filtered_df[filtered_df['calories'] <= rules['low_calories']]
+            if len(filtered_df) > 0:
+                # Сортируем по калориям по возрастанию и берем ТОП-1
+                filtered_df = filtered_df.sort_values('calories', ascending=True).head(1)
+        
+        # ЖЕСТКАЯ логика для белков
+        elif 'много белков' in request_lower or 'высокий белок' in request_lower:
             filtered_df = filtered_df[filtered_df['proteins'] >= rules['high_proteins']]
+            if len(filtered_df) > 0:
+                filtered_df = filtered_df.sort_values('proteins', ascending=False).head(1)
+        
         elif 'мало белков' in request_lower or 'низкий белок' in request_lower:
             filtered_df = filtered_df[filtered_df['proteins'] <= rules['low_proteins']]
-        elif 'белк' in request_lower:
-            protein_match = re.search(r'(\d+)\s*г?р?а?м?м?\s*белк', request_lower)
-            if protein_match:
-                target_protein = int(protein_match.group(1))
-                filtered_df = filtered_df[
-                    (filtered_df['proteins'] >= target_protein - 3) & 
-                    (filtered_df['proteins'] <= target_protein + 3)
-                ]
-        
-        # Фильтры по калориям
-        if 'мало калорий' in request_lower or 'низкокалорий' in request_lower:
-            filtered_df = filtered_df[filtered_df['calories'] <= rules['low_calories']]
-        elif 'много калорий' in request_lower or 'калорийн' in request_lower:
-            filtered_df = filtered_df[filtered_df['calories'] >= rules['high_calories']]
+            if len(filtered_df) > 0:
+                filtered_df = filtered_df.sort_values('proteins', ascending=True).head(1)
         
         # Фильтры по углеводам
-        if 'мало углеводов' in request_lower or 'низкоуглевод' in request_lower:
+        elif 'мало углеводов' in request_lower or 'низкоуглевод' in request_lower:
             filtered_df = filtered_df[filtered_df['carbs'] <= rules['low_carbs']]
+            if len(filtered_df) > 0:
+                filtered_df = filtered_df.sort_values('carbs', ascending=True).head(1)
+        
         elif 'много углеводов' in request_lower:
             filtered_df = filtered_df[filtered_df['carbs'] >= rules['high_carbs']]
+            if len(filtered_df) > 0:
+                filtered_df = filtered_df.sort_values('carbs', ascending=False).head(1)
     
     return filtered_df
 
@@ -126,7 +136,7 @@ def smart_filter_with_priority(df, user_request):
     return filtered_df, "full_match"
 
 def create_smart_prompt(filtered_df, user_request, match_type):
-    """Создает умный промпт для DeepSeek с учетом фильтрации"""
+    """Создает умный промпт для DeepSeek с ЧЕТКИМИ инструкциями по сортировке"""
     
     # ГАРАНТИЯ: Всегда есть блюда для выбора
     if len(filtered_df) == 0:
@@ -146,7 +156,6 @@ def create_smart_prompt(filtered_df, user_request, match_type):
         }
         dishes_info.append(dish_info)
     
-    # Получаем правила для разных категорий
     dessert_rules = get_nutrition_rules('десерт')
     main_rules = get_nutrition_rules('main')
     
@@ -160,29 +169,34 @@ def create_smart_prompt(filtered_df, user_request, match_type):
 Запрос пользователя: "{user_request}"
 {context_messages[match_type]}
 
-Доступные блюда (уже отфильтрованы под запрос, ВСЕГДА есть хотя бы одно блюдо):
+Доступные блюда (уже отфильтрованы под запрос):
 {json.dumps(dishes_info, ensure_ascii=False, indent=2)}
 
 ВАЖНОЕ ПРАВИЛО: ЕСЛИ В ЗАПРОСЕ УКАЗАНА КАТЕГОРИЯ (десерт/салат/горячее/завтрак) - ВЫБИРАЙ ТОЛЬКО ИЗ ЭТОЙ КАТЕГОРИИ!
 
-РАЗНЫЕ ПРАВИЛА ДЛЯ РАЗНЫХ КАТЕГОРИЙ:
+ЧЕТКИЕ ПРАВИЛА ВЫБОРА:
 
 ДЛЯ ДЕСЕРТОВ:
-- МАЛО калорий: до {dessert_rules['low_calories']} ккал (Сырники {320})
-- МНОГО калорий: от {dessert_rules['high_calories']} ккал (Тирамису {460}, Чизкейк {420})  
-- МАЛО белков: до {dessert_rules['low_proteins']}г (Мусс {6}, Картошка {5})
-- МНОГО белков: от {dessert_rules['high_proteins']}г (Сырники {12})
+- "много калорий" → выбирай блюдо с НАИБОЛЬШИМ количеством калорий (от {dessert_rules['high_calories']} ккал)
+- "мало калорий" → выбирай блюдо с НАИМЕНЬШИМ количеством калорий (до {dessert_rules['low_calories']} ккал)
+- "много белков" → выбирай блюдо с НАИБОЛЬШИМ количеством белков (от {dessert_rules['high_proteins']}г)
 
-ДЛЯ ОСНОВНЫХ БЛЮД (горячее, салаты, завтраки):
-- МАЛО калорий: до {main_rules['low_calories']} ккал (Рыба {220}, Омлет {300})
-- МНОГО калорий: от {main_rules['high_calories']} ккал (Лазанья {600}, Стейк {550})  
-- МАЛО белков: до {main_rules['low_proteins']}г
-- МНОГО белков: от {main_rules['high_proteins']}г (Курица {35}, Стейк {40})
+ДЛЯ ОСНОВНЫХ БЛЮД:
+- "много калорий" → выбирай блюдо с НАИБОЛЬШИМ количеством калорий (от {main_rules['high_calories']} ккал)
+- "мало калорий" → выбирай блюдо с НАИМЕНЬШИМ количеством калорий (до {main_rules['low_calories']} ккал)
+- "много белков" → выбирай блюдо с НАИБОЛЬШИМ количеством белков (от {main_rules['high_proteins']}г)
+
+КОНКРЕТНЫЕ ЦИФРЫ ДЛЯ ДЕСЕРТОВ:
+- Тирамису: 460 ккал (САМЫЙ калорийный десерт)
+- Чизкейк Нью-Йорк: 420 ккал
+- Мусс шоколадный: 390 ккал  
+- Картошка (десерт): 380 ккал
+- Сырники: 320 ккал (САМЫЙ низкокалорийный десерт)
 
 Верни JSON:
 {{
     "choice": "название блюда",
-    "reason": "подробное обоснование на русском с цифрами. ЕСЛИ УКАЗАНА КАТЕГОРИЯ - ВЫБИРАЙ ТОЛЬКО ИЗ НЕЁ! Всегда выбирай конкретное блюдо.",
+    "reason": "подробное обоснование на русском с цифрами. СРАВНИВАЙ числовые значения и выбирай оптимальное!",
     "target_macros": {{
         "calories": число или null,
         "proteins": число или null, 
@@ -192,13 +206,11 @@ def create_smart_prompt(filtered_df, user_request, match_type):
     "match_quality": "perfect|good|compromise"
 }}
 
-ЖЕСТКИЕ ПРАВИЛА:
-1. Если в запросе есть "десерт" - выбирай ТОЛЬКО из десертов
-2. Если в запросе есть "салат" - выбирай ТОЛЬКО из салатов  
-3. Если в запросе есть "горячее" - выбирай ТОЛЬКО из горячих блюд
-4. Если в запросе есть "завтрак" - выбирай ТОЛЬКО из завтраков
-5. ВСЕГДА выбирай конкретное блюдо - никогда не возвращай пустой результат
-6. Если нет идеального match - выбери лучший вариант из доступных и объясни почему
+ЖЕСТКИЕ ПРАВИЛА ВЫБОРА:
+1. Для "десерт, много калорий" → ВЫБИРАЙ Тирамису (460 ккал) - это САМЫЙ калорийный десерт
+2. Для "десерт, мало калорий" → ВЫБИРАЙ Сырники (320 ккал) - это САМЫЙ низкокалорийный десерт
+3. Для "десерт, много белков" → ВЫБИРАЙ Сырники (12г) - это САМЫЙ белковый десерт
+4. Всегда сравнивай ЧИСЛОВЫЕ значения и выбирай ЭКСТРЕМУМ (максимум или минимум)
 """
     return prompt
 
@@ -219,7 +231,7 @@ def call_deepseek_api(prompt: str):
         "messages": [
             {
                 "role": "system", 
-                "content": "Ты помощник по подбору блюд. Учитывай что для десертов и основных блюд разные nutritional нормы. ВСЕГДА выбирай конкретное блюдо - никогда не возвращай пустой результат."
+                "content": "Ты помощник по подбору блюд. Учитывай что для десертов и основных блюд разные nutritional нормы. ВСЕГДА выбирай конкретное блюдо - никогда не возвращай пустой результат. СРАВНИВАЙ числовые значения!"
             },
             {"role": "user", "content": prompt}
         ],
@@ -236,10 +248,36 @@ def call_deepseek_api(prompt: str):
         return None
 
 def llm_pick_dish(free_text: str):
-    """Умный выбор блюда через DeepSeek - ВСЕГДА возвращает результат"""
+    """Умный выбор блюда через DeepSeek - с ПРИНУДИТЕЛЬНОЙ сортировкой"""
     
     # Сначала применяем умную фильтрацию (гарантирует хотя бы одно блюдо)
     filtered_df, match_type = smart_filter_with_priority(df, free_text)
+    
+    # ПРИНУДИТЕЛЬНАЯ логика для определенных запросов
+    query_lower = free_text.lower()
+    
+    # Если запрос явно про калории в десертах - принудительно сортируем
+    if 'десерт' in query_lower and 'калорий' in query_lower:
+        dessert_df = filtered_df[filtered_df['category'] == 'десерт']
+        if len(dessert_df) > 0:
+            if 'много' in query_lower:
+                # Принудительно берем самый калорийный десерт
+                best_dish = dessert_df.sort_values('calories', ascending=False).iloc[0]
+                return {
+                    "choice": best_dish["name"],
+                    "reason": f"Это самый калорийный десерт в меню ({best_dish['calories']} ккал)",
+                    "target_macros": {"calories": best_dish['calories'], "proteins": None, "fats": None, "carbs": None},
+                    "match_quality": "perfect"
+                }
+            elif 'мало' in query_lower:
+                # Принудительно берем самый низкокалорийный десерт
+                best_dish = dessert_df.sort_values('calories', ascending=True).iloc[0]
+                return {
+                    "choice": best_dish["name"],
+                    "reason": f"Это самый низкокалорийный десерт в меню ({best_dish['calories']} ккал)",
+                    "target_macros": {"calories": best_dish['calories'], "proteins": None, "fats": None, "carbs": None},
+                    "match_quality": "perfect"
+                }
     
     # Создаем умный промпт
     prompt = create_smart_prompt(filtered_df, free_text, match_type)
@@ -252,7 +290,7 @@ def llm_pick_dish(free_text: str):
                 content = api_response['choices'][0]['message']['content']
                 result = json.loads(content)
                 
-                # ГАРАНТИЯ: Проверяем что выбранное блюдо есть в DataFrame
+                # Проверяем что выбранное блюдо есть в DataFrame
                 if 'choice' in result and result['choice'] in df["name"].tolist():
                     print("✅ DeepSeek API успешно сработал!")
                     return result
@@ -283,23 +321,23 @@ def llm_pick_dish(free_text: str):
             # Для десертов много калорий - от 400
             high_cal_desserts = dessert_df[dessert_df['calories'] >= 400]
             if len(high_cal_desserts) > 0:
-                best_dish = high_cal_desserts.iloc[0]
+                best_dish = high_cal_desserts.sort_values('calories', ascending=False).iloc[0]
             else:
-                best_dish = dessert_df.iloc[0]  # Берем первый десерт если нет высококалорийных
+                best_dish = dessert_df.sort_values('calories', ascending=False).iloc[0]  # Берем самый калорийный десерт
         elif 'мало калорий' in query_lower:
             # Для десертов мало калорий - до 350
             low_cal_desserts = dessert_df[dessert_df['calories'] <= 350]
             if len(low_cal_desserts) > 0:
-                best_dish = low_cal_desserts.iloc[0]
+                best_dish = low_cal_desserts.sort_values('calories', ascending=True).iloc[0]
             else:
-                best_dish = dessert_df.iloc[0]  # Берем первый десерт если нет низкокалорийных
+                best_dish = dessert_df.sort_values('calories', ascending=True).iloc[0]  # Берем самый низкокалорийный десерт
         elif 'много белков' in query_lower:
             # Для десертов много белков - от 10г
             high_protein_desserts = dessert_df[dessert_df['proteins'] >= 10]
             if len(high_protein_desserts) > 0:
-                best_dish = high_protein_desserts.iloc[0]
+                best_dish = high_protein_desserts.sort_values('proteins', ascending=False).iloc[0]
             else:
-                best_dish = dessert_df.iloc[0]  # Берем первый десерт если нет белковых
+                best_dish = dessert_df.sort_values('proteins', ascending=False).iloc[0]  # Берем самый белковый десерт
         else:
             best_dish = dessert_df.iloc[0]  # Просто первый десерт
         
@@ -377,8 +415,41 @@ def recommend():
         recommendations = []
         dish_name = candidate["name"]
         
-        # ... (твоя существующая логика рекомендаций)
-        
+        if dish_name == "Курица с овощами":
+            recommendations = ["Салат Цезарь", "Омлет с овощами"]
+        elif dish_name == "Рыба на пару":
+            recommendations = ["Гречка с мясом", "Салат Цезарь"]
+        elif dish_name == "Гречка с мясом":
+            recommendations = ["Рыба на пару", "Салат Цезарь"]
+        elif dish_name == "Омлет с овощами":
+            recommendations = ["Курица с овощами", "Салат Цезарь"]
+        elif dish_name == "Салат Цезарь":
+            recommendations = ["Курица с овощами", "Паста с томатами"]
+        elif dish_name == "Паста с томатами":
+            recommendations = ["Салат Цезарь", "Рыба на пару"]
+        elif dish_name == "Сырники":
+            recommendations = ["Чизкейк Нью-Йорк", "Омлет с овощами"]
+        elif dish_name == "Картошка (десерт)":
+            recommendations = ["Тирамису", "Сырники"]
+        elif dish_name == "Лазанья":
+            recommendations = ["Гречка с мясом", "Паста с томатами"]
+        elif dish_name == "Стейк с овощами":
+            recommendations = ["Рыба на пару", "Салат Цезарь"]
+        elif dish_name == "Чизкейк Нью-Йорк":
+            recommendations = ["Тирамису", "Сырники"]
+        elif dish_name == "Тирамису":
+            recommendations = ["Чизкейк Нью-Йорк", "Картошка (десерт)"]
+        elif dish_name == "Паста Болоньезе":
+            recommendations = ["Лазанья", "Стейк с овощами"]
+        elif dish_name == "Салат греческий":
+            recommendations = ["Салат Цезарь", "Омлет с овощами"]
+        elif dish_name == "Мусс шоколадный":
+            recommendations = ["Тирамису", "Чизкейк Нью-Йорк"]
+        elif dish_name == "Куриные крылышки BBQ":
+            recommendations = ["Паста Болоньезе", "Салат греческий"]
+        else:
+            recommendations = ["Салат Цезарь", "Курица с овощами"]
+
         response = jsonify({
             "dish": candidate,
             "llm_choice": llm.get("choice"),
