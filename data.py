@@ -29,10 +29,6 @@ def get_data():
          "Салат Цезарь,Рыба на пару"),
 
         # Новые блюда + десерты
-        ("Медовик", "десерт", "обычное", 450, 6, 20, 65,
-         "торт,мёд,сливки",
-         "https://static.vkusnyblog.com/full/uploads/2015/12/medovik-atelie-big.jpg",
-         "Сырники,Салат Цезарь"),
         ("Сырники", "десерт/завтрак", "вегетарианское", 320, 12, 10, 38,
          "творог,жаренные,завтрак",
          "https://static.nv.ua/shared/system/MediaPhoto/images/000/475/411/original/77820e781064bb7ac2a07a0bbd4d7d5d.png",
